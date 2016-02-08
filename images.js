@@ -5,10 +5,9 @@ var fs = require('fs'),
     JPEG = require('jpeg-js');
 
 module.exports.loadAll = function (path, cb) {
-    var base = pathlib.basename(path)
     fs.readdir(path, (err, names) => {
 	if (err) return cb(err)
-	var paths = names.map(name => pathlib.join(base, name))
+	var paths = names.map(name => pathlib.join(path, name))
 	module.exports.load(paths, cb)
     })
 }
@@ -69,8 +68,7 @@ module.exports.sample = function (img, x, y, size) {
 var getPixel =
 module.exports.getPixel = function (img, x, y) {
     var i = (img.width * y + x) * 4
-    var alpha = 1 //(img.data[i+3]/255)||1 DISABLED
-    return { r: (img.data[i]*alpha)|0, g: (img.data[i+1]*alpha)|0, b: (img.data[i+2]*alpha)|0 }
+    return { r: img.data[i], g: img.data[i+1], b: img.data[i+2] }
 }
 
 //	    to: { x: loX(), y: loY(), width: hiX(), height: hiY() },

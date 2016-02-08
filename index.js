@@ -4,7 +4,7 @@ var imglib = require('./images')
 // settings
 const VIZ_TIME = 30e3
 const DAMPENING = 0.1
-const algs = [random, /*zigzag,*/ thematrix, imgsweep]
+const algs = [thematrix, random, /*zigzag,*/ thematrix/*, imgsweep*/]
 
 // dampening monkeypatch
 var matrix = new LedMatrix(32)
@@ -13,11 +13,11 @@ matrix.setPixel = function(x,y,r,g,b) {
     _setPixel(x,y,r*DAMPENING, g*DAMPENING, b*DAMPENING)
 }
 
-// asets
+// assets
 var images = null
-imglib.loadAll('/home/pi/Software/viz/images', (err, _images) => {
+imglib.load(require('path').join(__dirname,'images/metroid.jpg'), (err, metroid) => {
     if (err) throw err
-    images = _images
+    images = { metroid: metroid[0] }
     console.log('images loaded')
 })
 
@@ -150,28 +150,54 @@ function zigzag() {
 }
 
 function thematrix() {
+
+    const sources = {
+	green: (i, len) => {
+	    return {
+		r: i==LEN?(hiR()*0.5):0,
+		g: (hiG()*(i/LEN))|0,
+		b: i==LEN?(hiB()*0.5):0
+	    }
+	},
+	metroid: (i, len, x, y) => {
+	    if (!images || !images.metroid)
+		return sources.green(i, len, x, y)
+	    var p = imglib.getPixel(images.metroid, x, (hiY()-y))
+	    const ratio = i/LEN
+	    return {
+		r: (p.r*ratio)|0,
+		g: (p.g*ratio)|0,
+		b: (p.b*ratio)|0
+	    }
+	}
+    }
+    
     var runners = []
-    const LEN=15
+    var LEN=15
+    var SOURCE=sources.green
     
     var i = setInterval(() => {
-	runners = runners.filter(r => r.y > -LEN)	
+//	runners = runners.filter(r => r.y > -LEN)	
 	runners.forEach(runner => {
 	    for (var i=LEN; i >= 0; i--) {
 		var y = (runner.y - i)|0
 		if (y >= hiY() || y < 0)
 		    continue
-		var r = i==LEN?(hiR()*0.5):0
-		var g = (hiG()*(i/LEN))|0
-		var b = i==LEN?(hiB()*0.5):0
-		matrix.setPixel(runner.x, y, r, g, b)
+		var c = runner.source(i, LEN, runner.x, y)
+		matrix.setPixel(runner.x, y, c.r, c.g, c.b)
 	    }
 	    runner.y -= runner.speed
 	})
     }, 33)
 
     var j = setInterval(() => {
-	runners.push({ x: randX(), y: hiY()+LEN, speed: Math.random()+0.1 })
+	runners.push({ x: randX(), y: hiY()+LEN, speed: Math.random()+0.1, source: SOURCE })
     }, 33)
+
+    setTimeout(() => {
+	// double the length and switch to metroid
+	SOURCE=sources.metroid
+    }, VIZ_TIME/2)
     
     return () => { clearInterval(i); clearInterval(j); }
 }
